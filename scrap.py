@@ -4,34 +4,46 @@
 from requests_html import HTMLSession
 from bs4 import BeautifulSoup
 
-# create an HTML Session object
+# Création un objet Session HTML
 session = HTMLSession()
- 
-# Use the object above to connect to needed webpage
-resp = session.get("https://transparencyreport.google.com/safe-browsing/search?url=etoro.com%2Fmarkets%2Fbtc&hl=fr")
- 
-# Run JavaScript code on webpage
-resp.html.render()
+# List des URL à tester
+urls=[
+ "https://transparencyreport.google.com/safe-browsing/search?url=etoro.com%2Fmarkets%2Fbtc&hl=fr",
+ "https://transparencyreport.google.com/safe-browsing/search?url=sncf.fr&hl=fr",
+ "https://transparencyreport.google.com/safe-browsing/search?url=fdj.fr&hl=fr"    
+]
+# listing des URL testées avec le resultat
+list_url =[]
+# Etat des resultats, 0 si aucune anomalie, 1 si au moins un resultat est incorecte => declanche l'envoi d'un mail
 
-#option_tags = resp.html.find("span")
- 
-#dates = [tag.text for tag in option_tags]
+def connection(urls):
+    status = 0 #initialisation de la variable defaut, 0 = pas de defaut
+    for url in urls:
+        # Utilisation de l'objet pour se connecter à la page Web requise
+        resp = session.get(url)
 
-#print(dates)
+        # Execution du code JavaScript sur la page Web
+        resp.html.render()
+        # Recuperation du code HTML généré
+        soup = BeautifulSoup(resp.html.html, "lxml")
+        # Recherche de la balise ciblée
+        option_tags = soup.find_all('span', attrs={'class': ''} ) 
+        results = [tag.text for tag in option_tags]
+        #mise en forme du resultat : URL + etat
+        result = "%s \\ %s " % (url, results[0])
+        list_url.append(result)
+        # Verification que l'url retournent un texte différent de “Aucun contenu suspect détecté”
+        if results[0] != "Aucun contenu suspect détecté":
+            status = 1 # Texte different
+        content = {"status" : status, "list url" : list_url}
+    return content 
 
-soup = BeautifulSoup(resp.html.html, "lxml")
- 
-option_tags = soup.find_all('span', attrs={'class': ''} )
-#option_tags = soup.find_all('div', attrs={'class': 'value'}) 
+def mail(content):
+    if content['status'] == 1:
+        for list in content['list_url']:
+            print(list)
 
-dates = [tag.text for tag in option_tags]
+content = connection(urls)
+mail(content)
 
-print(dates[0])
 
-#i = 0
-
-#for date in dates:
-#    print(i,date)
-#    i += 1  
-    
-#print(soup)
